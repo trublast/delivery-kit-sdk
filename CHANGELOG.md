@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/deckhouse/delivery-kit-sdk/compare/v1.2.0...v1.2.1) (2026-05-27)
+
+
+### Bug Fixes
+
+* **signature, image:** align Vault ACL path with cosign attest ([#86](https://github.com/deckhouse/delivery-kit-sdk/issues/86)) ([3dc9010](https://github.com/deckhouse/delivery-kit-sdk/commit/3dc901053783261b4c6308bd81f7f6bb9e8c92c9))
+
 ## [1.2.0](https://github.com/deckhouse/delivery-kit-sdk/compare/v1.1.0...v1.2.0) (2026-05-15)
 
 
