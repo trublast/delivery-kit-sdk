@@ -7,6 +7,7 @@ package inhouse
 #cgo CFLAGS: -I../../../../c/lib/welf/include -I../../../../c/vendor/libelf/include
 #cgo LDFLAGS: -L../../../../c/lib -L../../../../c/vendor -l:welf.a -lelf -luv -lzstd -lz -lssl -lcrypto -ldl -lpthread -static
 #include <errno.h>
+#include <gelf.h>
 #include <libelf.h>
 #include <openssl/sha.h>
 #include <stdio.h>
@@ -53,6 +54,21 @@ int go_elf_init(const char* elf_path, FILE** out_file, Elf** out_elf) {
         elf_end(elf);
         fclose(file);
         return -2;
+    }
+
+    GElf_Ehdr ehdr;
+    if (gelf_getehdr(elf, &ehdr) == NULL) {
+        go_set_errmsg("failed to get ELF header: %s", elf_errmsg(-1));
+        elf_end(elf);
+        fclose(file);
+        return -1;
+    }
+
+    // e_shnum == 0 with e_shoff != 0 means extended section numbering, not sectionless.
+    if (ehdr.e_shoff == 0 && ehdr.e_shnum == 0) {
+        elf_end(elf);
+        fclose(file);
+        return -3;
     }
 
     *out_file = file;
@@ -206,6 +222,9 @@ func initELF(cPath *C.char) (*C.FILE, *C.Elf, error) {
 	if code := C.go_elf_init(cPath, &cFile, &cElf); code < 0 {
 		if code == -2 {
 			return nil, nil, elf.ErrNotELF
+		}
+		if code == -3 {
+			return nil, nil, elf.ErrNoSections
 		}
 		return nil, nil, fmt.Errorf("ELF init failed: %s", C.GoString(C.go_errmsg()))
 	}
