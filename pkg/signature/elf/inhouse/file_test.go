@@ -21,6 +21,7 @@ const (
 	helloElfFile                      = "../../../../test/data/hello.elf"
 	helloElfFileWithSignature         = "../../../../test/data/hello_with_signature.elf"
 	helloElfFileWithOutdatedSignature = "../../../../test/data/hello_with_outdated_signature.elf"
+	helloSectionlessElfFile           = "../../../../test/data/hello_sectionless.elf"
 )
 
 var _ = Describe("signature/elf/custom", func() {
@@ -109,6 +110,33 @@ var _ = Describe("signature/elf/custom", func() {
 		Entry(
 			"with x509 certs",
 			MatchError(elf.ErrNoSignatureSection),
+		),
+	)
+
+	DescribeTable("should fail to sign sectionless elf",
+		func(ctx SpecContext) {
+			signerVerifier := newSignerVerifier(ctx)
+
+			oldElfBinary := readFile(helloSectionlessElfFile)
+			newElfFilePath, cleanupTmpFile := makeTempFileCopy(helloSectionlessElfFile, "hello_sectionless.*.elf")
+			defer cleanupTmpFile()
+
+			Expect(inhouse.Sign(ctx, signerVerifier, newElfFilePath)).To(MatchError(elf.ErrNoSections))
+
+			newElfBinary := readFile(newElfFilePath)
+			Expect(newElfBinary).To(Equal(oldElfBinary))
+		},
+		Entry(
+			"with x509 certs",
+		),
+	)
+
+	DescribeTable("should fail to verify sectionless elf",
+		func(ctx SpecContext) {
+			Expect(inhouse.Verify(ctx, []string{cert_utils.RootCABase64}, helloSectionlessElfFile)).To(MatchError(elf.ErrNoSections))
+		},
+		Entry(
+			"with x509 certs",
 		),
 	)
 
