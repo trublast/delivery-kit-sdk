@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/deckhouse/delivery-kit-sdk/compare/v1.2.1...v1.3.0) (2026-07-27)
+
+
+### Features
+
+* **hashivault:** enhance SignerVerifier to accept Vault options in addition to VAULT envs ([#103](https://github.com/deckhouse/delivery-kit-sdk/issues/103)) ([81a33b0](https://github.com/deckhouse/delivery-kit-sdk/commit/81a33b0c07936c01a63cde235c7f02b7ae5e40cc))
+
+
+### Bug Fixes
+
+* if no sections in elf file during sign/verify return specific error ([850b9ba](https://github.com/deckhouse/delivery-kit-sdk/commit/850b9ba29538deea83ab1d2627264406d959cadc))
+* if no sections in elf file during sign/verify return specific error ([#88](https://github.com/deckhouse/delivery-kit-sdk/issues/88)) ([9ec2ae7](https://github.com/deckhouse/delivery-kit-sdk/commit/9ec2ae7d649150a566da209e87bd41a26b7219be))
+
 ## [1.2.1](https://github.com/deckhouse/delivery-kit-sdk/compare/v1.2.0...v1.2.1) (2026-05-27)
 
 
