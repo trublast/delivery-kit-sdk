@@ -29,7 +29,7 @@ const (
 // signerVerifierFromKeyRef
 // Copied from https://github.com/sigstore/cosign/blob/c948138c19691142c1e506e712b7c1646e8ceb21/pkg/signature/keys.go#L103
 // and modified after.
-func signerVerifierFromKeyRef(ctx context.Context, keyRef string, passFunc cryptoutils.PassFunc) (signature.SignerVerifier, error) {
+func signerVerifierFromKeyRef(ctx context.Context, keyRef string, passFunc cryptoutils.PassFunc, opts SignerVerifierOpts) (signature.SignerVerifier, error) {
 	if keyRef == "" {
 		return nil, errors.New("keyRef must not be empty string")
 	}
@@ -42,7 +42,7 @@ func signerVerifierFromKeyRef(ctx context.Context, keyRef string, passFunc crypt
 	case strings.HasPrefix(keyRef, gitLabReferenceScheme):
 		return nil, errors.New("gitlab keys are not supported")
 	case strings.HasPrefix(keyRef, hashivault.ReferenceScheme):
-		return hashivault.LoadSignerVerifier(keyRef, crypto.SHA256)
+		return hashivault.LoadSignerVerifierWithOpts(keyRef, crypto.SHA256, opts.VaultOpts)
 	default:
 		sv, err := loadKey(keyRef, passFunc)
 		if err != nil {

@@ -42,6 +42,90 @@ This solves the 10-minute token expiry issue in GitHub Actions by obtaining a ne
 > available in GitHub Actions jobs with `id-token: write` permission.
 > See [GitHub OIDC documentation](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#oidc-token-permissions).
 
+## Programmatic configuration (`VaultOpts`)
+
+Besides environment variables, the loader can be configured in code through
+`KeyOpts.SignerVerifierOpts.VaultOpts` passed to `signver.NewSignerVerifier`.
+`VaultOpts` is defined in this package.
+
+#### Top-level fields
+
+| Field                     | Env equivalent               | Kind      |
+|---------------------------|------------------------------|-----------|
+| `Address`                 | `VAULT_ADDR`                 | Transport |
+| `TransitSecretEnginePath` | `TRANSIT_SECRET_ENGINE_PATH` | Transport |
+| `Auth`                    | —                            | Auth      |
+
+`Auth` is a `*VaultAuth` that selects **exactly one** authentication method by
+setting exactly one of its variant fields. Setting zero or more than one is a
+configuration error.
+
+| `VaultAuth` field | Type           | Method              |
+|-------------------|----------------|---------------------|
+| `AppRole`         | `*AppRoleAuth` | Vault AppRole       |
+| `OIDC`            | `*OIDCAuth`    | GitHub Actions OIDC |
+| `JWT`             | `*JWTAuth`     | Static JWT          |
+| `Token`           | `*TokenAuth`   | Static Vault token  |
+
+Per-method fields:
+
+| Variant        | Fields                                | Env equivalent                                                                                  |
+|----------------|---------------------------------------|-------------------------------------------------------------------------------------------------|
+| `AppRoleAuth`  | `RoleID`, `SecretID`, `Path`          | `WERF_VAULT_AUTH_ROLE_ID` (or `VAULT_ROLE_ID`), `WERF_VAULT_AUTH_SECRET_ID` (or `VAULT_SECRET_ID`), `WERF_VAULT_AUTH_PATH` |
+| `OIDCAuth`     | `Audience`, `Role`, `Path`            | `WERF_ACTIONS_AUDIENCE`, `WERF_VAULT_AUTH_ROLE`, `WERF_VAULT_AUTH_PATH`                          |
+| `JWTAuth`      | `JWT`, `Role`, `Path`                 | `WERF_VAULT_AUTH_JWT`, `WERF_VAULT_AUTH_ROLE`, `WERF_VAULT_AUTH_PATH`                            |
+| `TokenAuth`    | `Token`                               | `VAULT_TOKEN`                                                                                    |
+
+`Path` defaults to `ar` for AppRole and `jwt` for JWT/OIDC when left empty.
+
+### Transport vs. auth options
+
+Transport options (`Address`, `TransitSecretEnginePath`) are always resolved
+independently, falling back to their environment variables and defaults when
+left empty. They never affect how authentication credentials are sourced.
+
+The **authentication source** is selected by `Auth`:
+
+- `Auth == nil` — env-mode: credentials are read from the environment,
+  identical to the env-only behavior above (including the priority AppRole >
+  GitHub Actions OIDC > static JWT > static token and the `VAULT_TOKEN` /
+  `~/.vault-token` fallback).
+- `Auth != nil` — opts-mode: credentials are taken **only** from the selected
+  variant; environment auth variables are ignored. There is no priority chain —
+  exactly one method must be set explicitly.
+
+This lets you, for example, set `Address` in code while still authenticating
+from CI environment variables (leave `Auth` nil).
+
+### Example
+
+```go
+sv, err := signver.NewSignerVerifier(ctx, "", "", signver.KeyOpts{
+	KeyRef: "hashivault://my-key",
+	SignerVerifierOpts: signver.SignerVerifierOpts{
+		VaultOpts: hashivault.VaultOpts{
+			Address: "https://vault.example.com",
+			Auth: &hashivault.VaultAuth{
+				AppRole: &hashivault.AppRoleAuth{
+					RoleID:   "role",
+					SecretID: "secret",
+					Path:     "approle",
+				},
+			},
+		},
+	},
+})
+```
+
+> **Note:** in opts-mode, incomplete auth options (for example, `AppRole` with
+> `RoleID` but no `SecretID`), no method set, or multiple methods set return an
+> error. The loader does **not** silently fall back to `VAULT_TOKEN` or
+> `~/.vault-token`, so it never signs under an unexpected host identity.
+>
+> GitHub Actions OIDC (`OIDCAuth`) still reads `ACTIONS_ID_TOKEN_REQUEST_URL`
+> and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` from the environment, as those are
+> injected by GitHub Actions.
+
 ### Authentication flow
 
 All authenticators that obtain a Vault token via login (`jwtAuthenticator`, `appRoleAuthenticator`) cache the
@@ -63,7 +147,7 @@ No extra HTTP requests between Vault operations, only the operation itself.
 sign() / verify() / public() → auth.Login()
   ├─ isTokenValid() = false → obtain new credentials
   │   ├─ AppRole: role_id + secret_id (no additional calls)
-  │   ├─ JWT (static): cached JWT from WERF_VAULT_AUTH_JWT (no additional calls)
+  │   ├─ JWT (static): cached JWT from WERF_VAULT_AUTH_JWT (env-mode) or JWTAuth.JWT (opts-mode) (no additional calls)
   │   └─ JWT (GitHub Actions): GET ACTIONS_ID_TOKEN_REQUEST_URL → fresh JWT
   ├─ POST /auth/jwt/login (or /auth/ar/login) → new Vault token
   │  cached as token_id with TTL from response

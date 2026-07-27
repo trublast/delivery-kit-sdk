@@ -12,10 +12,14 @@ type jwtAuthenticator struct {
 	role        string
 }
 
-func newJWTAuthenticator(provider jwtTokenProvider, role string) *jwtAuthenticator {
+func newJWTAuthenticator(provider jwtTokenProvider, role, authPath string) *jwtAuthenticator {
+	if authPath == "" {
+		authPath = "jwt"
+	}
+
 	return &jwtAuthenticator{
 		baseAuthenticator: baseAuthenticator{
-			authPath: "jwt",
+			authPath: authPath,
 		},
 		jwtProvider: provider,
 		role:        role,

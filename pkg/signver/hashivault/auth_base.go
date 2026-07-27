@@ -20,7 +20,7 @@ type baseAuthenticator struct {
 }
 
 func (b *baseAuthenticator) login(client *vault.Client, data map[string]interface{}) error {
-	resp, err := client.Logical().Write(fmt.Sprintf("/auth/%s/login", b.getAuthPath()), data)
+	resp, err := client.Logical().Write(fmt.Sprintf("/auth/%s/login", b.authPath), data)
 	if err != nil {
 		return fmt.Errorf("vault write: %w", err)
 	}
@@ -61,13 +61,6 @@ func (b *baseAuthenticator) isTokenValid() bool {
 	elapsed := time.Since(b.tokenIssuedAt)
 	// Re-authenticate if less than 30 seconds remain before expiration
 	return elapsed < b.tokenTTL-30*time.Second
-}
-
-func (b *baseAuthenticator) getAuthPath() string {
-	if authPath := getVaultAuthPath(); authPath != "" {
-		return authPath
-	}
-	return b.authPath
 }
 
 func (b *baseAuthenticator) Login(client *vault.Client) error {

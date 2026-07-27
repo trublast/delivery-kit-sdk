@@ -35,7 +35,7 @@ func NewSignerVerifier(ctx context.Context, certRef, certChainRef string, ko Key
 		return nil, errors.New("ko.KeyRef must not be empty string")
 	}
 
-	k, err := signerVerifierFromKeyRef(ctx, ko.KeyRef, ko.PassFunc)
+	k, err := signerVerifierFromKeyRef(ctx, ko.KeyRef, ko.PassFunc, ko.SignerVerifierOpts)
 	if err != nil {
 		return nil, fmt.Errorf("reading key: %w", err)
 	}

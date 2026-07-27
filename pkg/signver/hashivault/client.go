@@ -44,13 +44,86 @@ type hashivaultClient struct {
 	originalHashFunc crypto.Hash
 }
 
+// VaultOpts configures the Vault SignerVerifier programmatically.
+//
+// Transport options (Address, TransitSecretEnginePath) are always resolved
+// independently, falling back to environment variables and defaults when empty.
+//
+// Auth selects the authentication method: when nil, credentials are read from
+// the environment (env-mode); when set, credentials are taken ONLY from Auth
+// and the environment is never consulted for credentials (except the GitHub
+// Actions OIDC request URL/token, which are always injected by the runner).
+type VaultOpts struct {
+	// Address is the Vault server address (env: VAULT_ADDR).
+	Address string
+	// TransitSecretEnginePath is the transit engine mount path
+	// (env: TRANSIT_SECRET_ENGINE_PATH, default "transit").
+	TransitSecretEnginePath string
+	// Auth selects the programmatic auth method. When nil, auth is resolved
+	// from the environment.
+	Auth *VaultAuth
+}
+
+// VaultAuth selects exactly one authentication method. Exactly one field must
+// be non-nil; setting zero or more than one is a configuration error.
+type VaultAuth struct {
+	// AppRole authenticates via Vault AppRole.
+	AppRole *AppRoleAuth
+	// OIDC authenticates via GitHub Actions OIDC.
+	OIDC *OIDCAuth
+	// JWT authenticates via a static JWT.
+	JWT *JWTAuth
+	// Token authenticates via a static Vault token.
+	Token *TokenAuth
+}
+
+// AppRoleAuth authenticates via Vault AppRole. RoleID and SecretID are both
+// required.
+type AppRoleAuth struct {
+	// RoleID is the AppRole role id.
+	RoleID string
+	// SecretID is the AppRole secret id.
+	SecretID string
+	// Path is the AppRole auth mount path. Defaults to "ar" when empty.
+	Path string
+}
+
+// OIDCAuth authenticates via GitHub Actions OIDC. Audience is required; the
+// request URL and token are always read from the ACTIONS_ID_TOKEN_REQUEST_URL
+// and ACTIONS_ID_TOKEN_REQUEST_TOKEN environment variables injected by GitHub
+// Actions.
+type OIDCAuth struct {
+	// Audience is the OIDC token audience.
+	Audience string
+	// Role is the Vault JWT/OIDC role.
+	Role string
+	// Path is the JWT auth mount path. Defaults to "jwt" when empty.
+	Path string
+}
+
+// JWTAuth authenticates via a static JWT.
+type JWTAuth struct {
+	// JWT is the raw JWT to authenticate with.
+	JWT string
+	// Role is the Vault JWT role.
+	Role string
+	// Path is the JWT auth mount path. Defaults to "jwt" when empty.
+	Path string
+}
+
+// TokenAuth authenticates via a static Vault token.
+type TokenAuth struct {
+	// Token is the Vault token.
+	Token string
+}
+
 const (
 	// use a consistent key for cache lookups
 	cacheKey = "signer"
 )
 
-func newHashivaultClient(address, token, transitSecretEnginePath, keyResourceID string, keyVersion uint64, originalHashFunc crypto.Hash) (*hashivaultClient, error) {
-	if err := validReference(keyResourceID); err != nil {
+func newHashivaultClient(auth authenticator, address, transitSecretEnginePath, keyResourceID string, keyVersion uint64, originalHashFunc crypto.Hash) (*hashivaultClient, error) {
+	if err := ValidReference(keyResourceID); err != nil {
 		return nil, err
 	}
 
@@ -70,10 +143,11 @@ func newHashivaultClient(address, token, transitSecretEnginePath, keyResourceID 
 		return nil, fmt.Errorf("new vault client: %w", err)
 	}
 
-	auth, err := newAuthenticator(token)
-	if err != nil {
-		return nil, err
-	}
+	// vault.NewClient auto-loads VAULT_TOKEN from the environment. Clear it so a
+	// host token never leaks in the X-Vault-Token header of AppRole/JWT/OIDC
+	// login requests; each authenticator installs its own token via SetToken
+	// before performing signing operations.
+	client.ClearToken()
 
 	hvClient := &hashivaultClient{
 		client:                  client,

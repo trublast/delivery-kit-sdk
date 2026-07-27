@@ -17,8 +17,8 @@ const (
 	ReferenceScheme = "hashivault://"
 )
 
-// validReference returns a non-nil error if the reference string is invalid
-func validReference(ref string) error {
+// ValidReference returns a non-nil error if the reference string is invalid
+func ValidReference(ref string) error {
 	if !referenceRegex.MatchString(ref) {
 		return errReference
 	}

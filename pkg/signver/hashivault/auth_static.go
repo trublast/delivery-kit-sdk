@@ -20,6 +20,7 @@ func newStaticAuthProvider(token string) *staticAuthenticator {
 	}
 }
 
-func (s *staticAuthenticator) Login(_ *vault.Client) error {
+func (s *staticAuthenticator) Login(client *vault.Client) error {
+	client.SetToken(s.tokenID)
 	return nil
 }

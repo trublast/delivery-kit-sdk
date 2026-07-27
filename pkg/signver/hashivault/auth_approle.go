@@ -8,10 +8,14 @@ type appRoleAuthenticator struct {
 	secretID string
 }
 
-func newAppRoleAuthenticator(roleID, secretID string) *appRoleAuthenticator {
+func newAppRoleAuthenticator(roleID, secretID, authPath string) *appRoleAuthenticator {
+	if authPath == "" {
+		authPath = "ar"
+	}
+
 	return &appRoleAuthenticator{
 		baseAuthenticator: baseAuthenticator{
-			authPath: "ar",
+			authPath: authPath,
 		},
 		roleID:   roleID,
 		secretID: secretID,

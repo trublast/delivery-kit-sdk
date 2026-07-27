@@ -2,6 +2,8 @@ package signver
 
 import (
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
+
+	"github.com/deckhouse/delivery-kit-sdk/pkg/signver/hashivault"
 )
 
 // KeyOpts
@@ -12,4 +14,10 @@ type KeyOpts struct {
 	KeyRef string
 	// PassFunc
 	PassFunc cryptoutils.PassFunc
+	// SignerVerifierOpts
+	SignerVerifierOpts SignerVerifierOpts
+}
+
+type SignerVerifierOpts struct {
+	VaultOpts hashivault.VaultOpts
 }
