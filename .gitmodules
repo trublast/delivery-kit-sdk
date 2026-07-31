@@ -1,3 +1,0 @@
-[submodule "c/vendor/libelf"]
-	path = c/vendor/libelf
-	url = https://github.com/deckhouse/3p-libelf
